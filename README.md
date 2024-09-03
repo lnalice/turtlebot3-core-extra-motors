@@ -50,7 +50,7 @@ this files are under the file lib/motor_driver. This is only for onExtraMotor/ve
 * turtlebot3_motor_driver.cpp
 * turtlebot3_motor_driver.h
 
-# 2. Turetlbot3 Core
+# 2. Turelebot3 Core
 I modified turtlebot3_waffle's core to control more Dynamixel motors.
 If you upload turtlebot core using three files, you can control more extra motors. 
 * turtlebot3_core.ino

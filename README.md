@@ -70,8 +70,8 @@ There're two big directories.
 
 Two motors's mode should be position mode
 
-* **customVelocity**: two motors start moving in the same time. If their degree to move is different, their operations will not end up simulately. (same velocity)
-* **syncVelocity** : two motors start moving and finish moving in the same time. (different velocity)
+* **customVelocity**: two motors start moving simultaneously. If their degree to move is different, their operations will not end moving at the same time. (same velocity)
+* **syncVelocity** : two motors start and finish moving simultaneously. (different velocity)
 
 |/|customVelocity|syncVelocity|
 |--|--|--|

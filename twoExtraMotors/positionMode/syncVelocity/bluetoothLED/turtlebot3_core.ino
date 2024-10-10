@@ -20,10 +20,19 @@
 #include "turtlebot3_core_config.h"
 
 /*******************************************************************************
+* bluetooth & LED control
+********************************************************************************/
+
+#define BLUE_SERIAL Serial2
+
+char val; //value to receieve data from the serial port
+const int RELAYPIN = 7;
+
+/*******************************************************************************
 * Extended Position Mode
 *******************************************************************************/
 
-uint8_t i, recv_cnt = 0;
+uint8_t i, j, recv_cnt = 0;
 const uint8_t DXL_ID = 4;
 const uint8_t DXL_ID2 = 3;
 const int DXL_DIR_PIN = 84;
@@ -38,7 +47,7 @@ using namespace ControlTableItem;
 *******************************************************************************/
 void setup()
 {
-  DEBUG_SERIAL.begin(57600);
+  DEBUG_SERIAL.begin(19200);
 
   // Initialize ROS node handle, advertise and subscribe the topics
   nh.initNode();
@@ -91,6 +100,11 @@ void setup()
 
   updateSyncStructure(); // fill members of structure to syncRead and syncWrite
 
+  //Bluetooth and LED
+  BLUE_SERIAL.begin(57600); //begin serial communications
+  while(!BLUE_SERIAL);
+  pinMode(RELAYPIN, OUTPUT); // set LED pins as outputs
+
   setup_end = true;
 }
 
@@ -99,6 +113,19 @@ void setup()
 *******************************************************************************/
 void loop()
 {
+  // Bluetooth and LED
+  if(BLUE_SERIAL.available()) // check if there is data to read
+  {
+    val = BLUE_SERIAL.read(); // read the data into our value variable
+
+    if (val == 'o') {
+      digitalWrite(RELAYPIN, HIGH); // Turn on 
+    }
+    if (val == 'x') {
+      digitalWrite(RELAYPIN, LOW);
+    }
+  }
+
   uint32_t t = millis();
   char log_msg[50];
   updateTime();
@@ -195,7 +222,7 @@ void loop()
 
 void modulePositionCallback(const std_msgs::Float64MultiArray& mdl_pos_msg) //Extended Position Mode
 {
-
+  
   // Torque Off & On
   for(i = 0; i < DXL_ID_CNT; i++){
     dxl.torqueOff(DXL_ID_LIST[i]);

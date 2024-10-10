@@ -38,7 +38,7 @@
 #include <turtlebot3_msgs/VersionInfo.h>
 
 #include <TurtleBot3.h>
-#include "custom_turtlebot3_waffle.h"
+#include "turtlebot3_waffle.h"
 
 #include <math.h>
 
@@ -82,6 +82,7 @@ void motorPowerCallback(const std_msgs::Bool& power_msg);
 void resetCallback(const std_msgs::Empty& reset_msg);
 // void moduleVelocityCallback(const std_msgs::Float64& mdl_vel_msg); //third motor - velocity mode
 void modulePositionCallback(const std_msgs::Float64MultiArray& mdl_pos_msg); //third motor - Extended Position Control mode
+void blinkLedCallback(const std_msgs::Float64MultiArray& blink_led_msg); // 4 LEDs to indicate direction of movement
 
 // Function prototypes
 void publishCmdVelFromRC100Msg(void);
@@ -183,6 +184,8 @@ ros::Subscriber<std_msgs::Empty> reset_sub("reset", resetCallback);
 // ros::Subscriber<std_msgs::Float64> module_vel_sub("module_vel", moduleVelocityCallback); /* third motor [Velocity Mode] */
 
 ros::Subscriber<std_msgs::Float64MultiArray> module_pos_sub("module_pos", modulePositionCallback); /* third motor [Extended Position Control Mode*/
+
+ros::Subscriber<std_msgs::Float64MultiArray> blink_led_sub("blink_led", blinkLedCallback); /* LED [4 LEDs to indicate direction of movement] */
 
 /*******************************************************************************
 * Publisher

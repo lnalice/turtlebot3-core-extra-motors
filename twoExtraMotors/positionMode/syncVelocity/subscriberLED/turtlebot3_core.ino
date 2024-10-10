@@ -20,10 +20,23 @@
 #include "turtlebot3_core_config.h"
 
 /*******************************************************************************
+* bluetooth & LED control
+********************************************************************************/
+
+#define BLUE_SERIAL Serial2
+
+char val; //value to receieve data from the serial port
+// const int RELAYPIN = 7;
+const int LED_FRONT = 8;
+const int LED_LEFT = 9;
+const int LED_RIGHT = 10;
+const int LED_BACK = 11;
+
+/*******************************************************************************
 * Extended Position Mode
 *******************************************************************************/
 
-uint8_t i, recv_cnt = 0;
+uint8_t i, j, recv_cnt = 0;
 const uint8_t DXL_ID = 4;
 const uint8_t DXL_ID2 = 3;
 const int DXL_DIR_PIN = 84;
@@ -38,7 +51,7 @@ using namespace ControlTableItem;
 *******************************************************************************/
 void setup()
 {
-  DEBUG_SERIAL.begin(57600);
+  DEBUG_SERIAL.begin(19200);
 
   // Initialize ROS node handle, advertise and subscribe the topics
   nh.initNode();
@@ -52,6 +65,9 @@ void setup()
   /* additional motor*/
   // nh.subscribe(module_vel_sub); // velocity mode
   nh.subscribe(module_pos_sub); // position mode
+  
+  /* additionanl LEDs to indicate direction of movement */
+  nh.subscribe(blink_led_sub);
 
   nh.advertise(sensor_state_pub);  
   nh.advertise(version_info_pub);
@@ -91,6 +107,15 @@ void setup()
 
   updateSyncStructure(); // fill members of structure to syncRead and syncWrite
 
+  //Bluetooth and LED
+  BLUE_SERIAL.begin(57600); //begin serial communications
+  while(!BLUE_SERIAL);
+  // pinMode(RELAYPIN, OUTPUT); // set LED pins as outputs
+  pinMode(LED_FRONT, OUTPUT);
+  pinMode(LED_BACK, OUTPUT);
+  pinMode(LED_LEFT, OUTPUT);
+  pinMode(LED_RIGHT, OUTPUT);
+
   setup_end = true;
 }
 
@@ -99,6 +124,37 @@ void setup()
 *******************************************************************************/
 void loop()
 {
+  // Bluetooth and LED
+  if(BLUE_SERIAL.available()) // check if there is data to read
+  {
+    val = BLUE_SERIAL.read(); // read the data into our value variable
+
+    if (val == 'l') { // LEFT
+      digitalWrite(LED_LEFT, HIGH);
+    }
+    else if (val == 'r') { // RIGHT
+      digitalWrite(LED_RIGHT, HIGH);
+    }
+    else if (val == 'f') { // FRONT
+      digitalWrite(LED_FRONT, HIGH);
+    }
+    else if (val == 'b') { // BACK
+      digitalWrite(LED_BACK, HIGH);
+    }
+    else if (val == 'a') { // ON ALL
+      digitalWrite(LED_FRONT, HIGH);
+      digitalWrite(LED_LEFT, HIGH);
+      digitalWrite(LED_BACK, HIGH);
+      digitalWrite(LED_RIGHT, HIGH);
+    }
+    else { // OFF ALL
+      digitalWrite(LED_FRONT, LOW);
+      digitalWrite(LED_LEFT, LOW);
+      digitalWrite(LED_BACK, LOW);
+      digitalWrite(LED_RIGHT, LOW);
+    }
+  }
+
   uint32_t t = millis();
   char log_msg[50];
   updateTime();
@@ -185,6 +241,60 @@ void loop()
 
   // Wait the serial link time to process
   waitForSerialLink(nh.connected());
+}
+
+/******************************************************************************
+* [CUSTOM] CALLBACK (LED BLINK)
+* - Callback function for blinkLedCallback
+*******************************************************************************/
+void blinkLed(int ledPins[], int times) {
+  int pinLen = sizeof(ledPins) / 4; //4 = sizeof(ledPins[0])
+
+  for (i = 0; i < times; ++i) {
+    for (j = 0; j < pinLen; ++j) {
+      digitalWrite(ledPins[j], HIGH);
+    }
+    delay(1000);
+    for (j = 0; j < pinLen; ++j) {
+      digitalWrite(ledPins[j], LOW);
+    }
+    delay(1000);
+  }
+}
+
+/*
+* @blink_led_msg linX, angZ, deg1(id3), deg2(id4) 
+* ACTION      | PIN   | STATUS
+* ----------------------------
+* GO FORWRAD  | FRONT | ON
+* GO BACKWARD | BACK  | ON 
+* TURN LEFT   | LEFT  | ON
+* TURN RIGHT  | RIGHT | ON
+* CTRL MODULE | ALL   | ON
+*/
+void blinkLedCallback(const std_msgs::Float64MultiArray& blink_led_msg)
+{ 
+  float deg2 = blink_led_msg.data[3];
+  if (deg2 > 0) {
+    int ledList[4] = {LED_FRONT, LED_BACK, LED_LEFT, LED_RIGHT};
+    blinkLed(ledList, 2);
+    return;
+  }
+
+  float linX = blink_led_msg.data[0]; //velocity X
+  float angZ = blink_led_msg.data[1]; //velocity Z
+  if (angZ > 0.2) {
+    blinkLed(new int[1]{LED_LEFT}, 2);
+  }
+  else if (angZ < 0.2) {
+    blinkLed(new int[1]{LED_RIGHT}, 2);
+  }
+  else if (linX > 0){
+    blinkLed(new int[1]{LED_FRONT}, 2);
+  }
+  else {
+    blinkLed(new int[1]{LED_BACK}, 2);
+  }
 }
 
 /*******************************************************************************

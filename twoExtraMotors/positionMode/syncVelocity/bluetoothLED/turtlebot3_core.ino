@@ -17,7 +17,7 @@
 /* Authors: Yoonseok Pyo, Leon Jung, Darby Lim, HanCheol Cho, Gilbert */
 
 #include <Dynamixel2Arduino.h>
-#include "custom_turtlebot3_core_config.h"
+#include "turtlebot3_core_config.h"
 
 /*******************************************************************************
 * Extended Position Mode
@@ -88,8 +88,6 @@ void setup()
   //Extended Position Control Mod3
   dxl.begin(1000000);
   dxl.setPortProtocolVersion(DXL_PROTOCOL_VERSION);
-  
-  
 
   updateSyncStructure(); // fill members of structure to syncRead and syncWrite
 
@@ -106,11 +104,6 @@ void loop()
   updateTime();
   updateVariable(nh.connected());
   updateTFPrefix(nh.connected());
-
-  // if ((t-tTime[7]) <= CONTROL_MOTOR_TIMEOUT) //third motor
-  // { 
-  //   motor_driver.writeSingleVelocity(WHEEL_RADIUS, module_velocity); //velocity mode
-  // }
 
   if ((t-tTime[0]) >= (1000 / CONTROL_MOTOR_SPEED_FREQUENCY))
   {
@@ -151,8 +144,6 @@ void loop()
     publishVersionInfoMsg();
     tTime[4] = t;
   }
-
-
 
 #ifdef DEBUG
   if ((t-tTime[5]) >= (1000 / DEBUG_LOG_FREQUENCY))
@@ -201,15 +192,9 @@ void loop()
 * - Callback function for moduleVelocityCallback msg 
 * - Callback function for modulePositionCallback msg
 *******************************************************************************/
-// void moduleVelocityCallback(const std_msgs::Float64& module_vel_msg)
-// {
-//   module_velocity = module_vel_msg.data;
-//   tTime[7] = millis();
-// }
 
-void modulePositionCallback(const std_msgs::Float64MultiArray&  mdl_pos_msg) //Extended Position Mode
+void modulePositionCallback(const std_msgs::Float64MultiArray& mdl_pos_msg) //Extended Position Mode
 {
-  // motor_driver.writeSinglePosition(module_degree); //position mode (if you use motor_driver.cpp)
 
   // Torque Off & On
   for(i = 0; i < DXL_ID_CNT; i++){
@@ -217,6 +202,14 @@ void modulePositionCallback(const std_msgs::Float64MultiArray&  mdl_pos_msg) //E
     dxl.setOperatingMode(DXL_ID_LIST[i], OP_EXTENDED_POSITION);
     dxl.torqueOn(DXL_ID_LIST[i]);
   }
+
+  // Update velocity of short-running motor to sync time
+  if (mdl_pos_msg.data[0] < 0)
+    setLowerVelocity(mdl_pos_msg.data[0], mdl_pos_msg.data[1]);
+  else {
+    setProfileVelocity(DXL_ID_LIST[0], 0);
+    setProfileVelocity(DXL_ID_LIST[1], 0);
+  }  
 
   // SyncRead Present Position of motors in DXL_ID_LIST
   recv_cnt = dxl.syncRead(&sr_infos);
@@ -250,7 +243,7 @@ void updateSyncStructure() {
   sr_infos.addr = SR_START_ADDR;
   sr_infos.addr_length = SR_ADDR_LEN;
   sr_infos.p_xels = info_xels_sr;
-  sr_infos.xel_count = 0;  
+  sr_infos.xel_count = 0;
 
   for(i = 0; i < DXL_ID_CNT; i++){
     info_xels_sr[i].id = DXL_ID_LIST[i];
@@ -275,6 +268,37 @@ void updateSyncStructure() {
   sw_infos.is_info_changed = true;
 }
 
+/*******************************************************************************
+* [CUSTOM] SETUP LOWER VELOCITY
+*******************************************************************************/
+void setLowerVelocity(float deg1, float deg2) {
+
+  uint8_t target_idx = 0; //Set DXL_ID_LIST's index (neet to be changed)
+  float ratio;
+  
+  if (deg1 == 0 || deg2 == 0) return; // Do nothing (keep default setting)
+
+  // Find lower velocity
+  if (abs(deg1) > abs(deg2)) target_idx = 1;
+
+  // Ratio of degrees (deg1/deg2 or deg2/deg1)
+  if (target_idx == 0) ratio = abs(deg1 / deg2);
+  else  ratio = abs(deg2 / deg1);
+
+  // Update new velocity of lower one
+  int32_t default_vel = dxl.readControlTableItem(VELOCITY_LIMIT, DXL_ID_LIST[target_idx ^ 1]);
+  int32_t lower_vel = ratio * default_vel;
+
+  setProfileVelocity(DXL_ID_LIST[target_idx], lower_vel);
+  setProfileVelocity(DXL_ID_LIST[target_idx ^ 1], default_vel);
+}
+
+/*******************************************************************************
+* [CUSTOM] SET PROFILE VELOCITY
+*******************************************************************************/
+bool setProfileVelocity(uint8_t motor_id, int32_t vel) {
+  return dxl.writeControlTableItem(PROFILE_VELOCITY, motor_id, vel);
+}
 
 /*******************************************************************************
 * Callback function for cmd_vel msg

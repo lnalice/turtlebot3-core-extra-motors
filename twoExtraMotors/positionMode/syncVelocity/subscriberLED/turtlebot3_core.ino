@@ -65,7 +65,7 @@ void setup()
   /* additional motor*/
   // nh.subscribe(module_vel_sub); // velocity mode
   nh.subscribe(module_pos_sub); // position mode
-  
+
   /* additionanl LEDs to indicate direction of movement */
   nh.subscribe(blink_led_sub);
 
@@ -147,7 +147,7 @@ void loop()
       digitalWrite(LED_BACK, HIGH);
       digitalWrite(LED_RIGHT, HIGH);
     }
-    else { // OFF ALL
+    else if (val == 'x') { // OFF ALL
       digitalWrite(LED_FRONT, LOW);
       digitalWrite(LED_LEFT, LOW);
       digitalWrite(LED_BACK, LOW);

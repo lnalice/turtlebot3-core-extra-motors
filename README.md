@@ -119,12 +119,12 @@ There're two big directories.
 
 ### 3-2. Control 4 LED using 'subscriber' of ros topic
 
-* LED would be controlled when topic '/led_direction'(msg: std_msgs/Float64MultiArray).
-    * When the robot moves forward, FRONT LED lights up.
-    * When the robot moves backward, BACK LED lights up.
-    * When the robot turns to the left, LEFT LED lights up.
-    * When the robot turns to the right, RIGHT LED lights up.
-    * When the robot control the module, ALL LED lights up.
+* LED would be controlled when topic '/blink_led'(msg: std_msgs/Byte).
+    * When the robot moves forward, FRONT LED lights up (0b0001)
+    * When the robot turns to the right, RIGHT LED lights up (0b0010)
+    * When the robot moves backward, BACK LED lights up (0b0100)
+    * When the robot turns to the left, LEFT LED lights up (0b1000)
+    * When the robot control the module, ALL LED lights up (0b1111)
 * Two motors's mode should be position mode
 * LED should be connected to OpenCR 1.0
 
@@ -132,8 +132,12 @@ There're two big directories.
 
 |Terminal|Robot|bluetoothLED|subscriberLED|
 |--|--|--|--|
-| oo |_| TURN ON ||
+| aa |_| TURN ON ||
 | xx |_| TURN OFF ||
+| rr |_| RIGHT LED ||
+| ll |_| LEFT LED ||
+| ff |_| FRONT LED ||
+| bb |_| BACK LED ||
 || move forward |_| FRONT LED |
 || move backward |_| BACK LED |
 || turn right |_| RIGHT LED |

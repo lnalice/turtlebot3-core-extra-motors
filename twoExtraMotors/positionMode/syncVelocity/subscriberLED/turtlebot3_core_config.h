@@ -27,6 +27,7 @@
 #include <std_msgs/Int32.h>
 #include <std_msgs/Float64.h> // third motor
 #include <std_msgs/Float64MultiArray.h> //third motor & fourth motor
+#include <std_msgs/Byte.h> // 4 LEDs
 #include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Vector3.h>
 #include <tf/tf.h>
@@ -51,6 +52,8 @@
 #define DRIVE_INFORMATION_PUBLISH_FREQUENCY    30   //hz
 #define VERSION_INFORMATION_PUBLISH_FREQUENCY  1    //hz 
 #define DEBUG_LOG_FREQUENCY                    10   //hz 
+
+#define BLINK_LED_TIMEOUT                      4000  //ms
 
 #define WHEEL_NUM                        2
 
@@ -82,7 +85,7 @@ void motorPowerCallback(const std_msgs::Bool& power_msg);
 void resetCallback(const std_msgs::Empty& reset_msg);
 // void moduleVelocityCallback(const std_msgs::Float64& mdl_vel_msg); //third motor - velocity mode
 void modulePositionCallback(const std_msgs::Float64MultiArray& mdl_pos_msg); //third motor - Extended Position Control mode
-void blinkLedCallback(const std_msgs::Float64MultiArray& blink_led_msg); // 4 LEDs to indicate direction of movement
+void blinkLedCallback(const std_msgs::Byte& blink_led_msg); // 4 LEDs to indicate direction of movement
 
 // Function prototypes
 void publishCmdVelFromRC100Msg(void);
@@ -113,6 +116,25 @@ bool calcOdometry(double diff_time);
 
 void sendLogMsg(void);
 void waitForSerialLink(bool isConnected);
+
+/*******************************************************************************
+* LED
+*******************************************************************************/
+static bool led_sub = false;
+
+const uint8_t LED_PIN_CNT = 4;
+const uint8_t LED_BLINK_TIMES = 2;
+
+const uint8_t LED_FRONT = 50;
+const uint8_t LED_RIGHT = 51;
+const uint8_t LED_BACK = 52;
+const uint8_t LED_LEFT = 54;
+uint8_t LED_PIN_LIST[LED_PIN_CNT] = {LED_FRONT, LED_RIGHT, LED_BACK, LED_LEFT};
+
+byte led_status = 0b0000;
+bool led_call = false;
+
+void blinkLed(void);
 
 /*******************************************************************************
 * Extended Position Mode: SyncWrite
@@ -185,7 +207,8 @@ ros::Subscriber<std_msgs::Empty> reset_sub("reset", resetCallback);
 
 ros::Subscriber<std_msgs::Float64MultiArray> module_pos_sub("module_pos", modulePositionCallback); /* third motor [Extended Position Control Mode*/
 
-ros::Subscriber<std_msgs::Float64MultiArray> blink_led_sub("blink_led", blinkLedCallback); /* LED [4 LEDs to indicate direction of movement] */
+ros::Subscriber<std_msgs::Byte> blink_led_sub("blink_led", blinkLedCallback); 
+/* LED [4 LEDs to indicate direction of movement] */
 
 /*******************************************************************************
 * Publisher

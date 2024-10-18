@@ -21,16 +21,12 @@
 
 /*******************************************************************************
 * bluetooth & LED control
-********************************************************************************/
+*******************************************************************************/
 
 #define BLUE_SERIAL Serial2
 
 char val; //value to receieve data from the serial port
 // const int RELAYPIN = 7;
-const int LED_FRONT = 8;
-const int LED_LEFT = 9;
-const int LED_RIGHT = 10;
-const int LED_BACK = 11;
 
 /*******************************************************************************
 * Extended Position Mode
@@ -65,7 +61,7 @@ void setup()
   /* additional motor*/
   // nh.subscribe(module_vel_sub); // velocity mode
   nh.subscribe(module_pos_sub); // position mode
-
+  
   /* additionanl LEDs to indicate direction of movement */
   nh.subscribe(blink_led_sub);
 
@@ -124,6 +120,12 @@ void setup()
 *******************************************************************************/
 void loop()
 {
+  uint32_t t = millis();
+  char log_msg[50];
+  updateTime();
+  updateVariable(nh.connected());
+  updateTFPrefix(nh.connected());
+
   // Bluetooth and LED
   if(BLUE_SERIAL.available()) // check if there is data to read
   {
@@ -155,11 +157,10 @@ void loop()
     }
   }
 
-  uint32_t t = millis();
-  char log_msg[50];
-  updateTime();
-  updateVariable(nh.connected());
-  updateTFPrefix(nh.connected());
+  if (led_call)
+  {
+    blinkLed();
+  }
 
   if ((t-tTime[0]) >= (1000 / CONTROL_MOTOR_SPEED_FREQUENCY))
   {
@@ -247,23 +248,25 @@ void loop()
 * [CUSTOM] CALLBACK (LED BLINK)
 * - Callback function for blinkLedCallback
 *******************************************************************************/
-void blinkLed(int ledPins[], int times) {
-  int pinLen = sizeof(ledPins) / 4; //4 = sizeof(ledPins[0])
-
-  for (i = 0; i < times; ++i) {
-    for (j = 0; j < pinLen; ++j) {
-      digitalWrite(ledPins[j], HIGH);
+void blinkLed(void) {
+  for (i = 0; i < LED_BLINK_TIMES; i++) {
+    for (j = 0; j < LED_PIN_CNT; j++) {
+      if (bitRead(led_status, j))
+        digitalWrite(LED_PIN_LIST[j], HIGH);
     }
-    delay(1000);
-    for (j = 0; j < pinLen; ++j) {
-      digitalWrite(ledPins[j], LOW);
+    delay(300);
+    for (j = 0; j < LED_PIN_CNT; j++) {
+      if (bitRead(led_status, j)) {
+        digitalWrite(LED_PIN_LIST[j], LOW);
+      }
     }
-    delay(1000);
+    delay(200);
   }
+  led_call = false;
 }
 
 /*
-* @blink_led_msg linX, angZ, deg1(id3), deg2(id4) 
+* @blink_led_msg 0b0000 (RIGHT, LEFT, BACK, FRONT)
 * ACTION      | PIN   | STATUS
 * ----------------------------
 * GO FORWRAD  | FRONT | ON
@@ -272,29 +275,10 @@ void blinkLed(int ledPins[], int times) {
 * TURN RIGHT  | RIGHT | ON
 * CTRL MODULE | ALL   | ON
 */
-void blinkLedCallback(const std_msgs::Float64MultiArray& blink_led_msg)
+void blinkLedCallback(const std_msgs::Byte& blink_led_msg)
 { 
-  float deg2 = blink_led_msg.data[3];
-  if (deg2 > 0) {
-    int ledList[4] = {LED_FRONT, LED_BACK, LED_LEFT, LED_RIGHT};
-    blinkLed(ledList, 2);
-    return;
-  }
-
-  float linX = blink_led_msg.data[0]; //velocity X
-  float angZ = blink_led_msg.data[1]; //velocity Z
-  if (angZ > 0.2) {
-    blinkLed(new int[1]{LED_LEFT}, 2);
-  }
-  else if (angZ < 0.2) {
-    blinkLed(new int[1]{LED_RIGHT}, 2);
-  }
-  else if (linX > 0){
-    blinkLed(new int[1]{LED_FRONT}, 2);
-  }
-  else {
-    blinkLed(new int[1]{LED_BACK}, 2);
-  }
+  led_status = blink_led_msg.data;
+  led_call = true;
 }
 
 /*******************************************************************************

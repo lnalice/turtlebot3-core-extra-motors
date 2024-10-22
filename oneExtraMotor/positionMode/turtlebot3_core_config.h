@@ -37,7 +37,7 @@
 #include <turtlebot3_msgs/VersionInfo.h>
 
 #include <TurtleBot3.h>
-#include "custom_turtlebot3_waffle.h"
+#include "turtlebot3_waffle.h"
 
 #include <math.h>
 
@@ -228,7 +228,7 @@ float goal_velocity_from_button[WHEEL_NUM] = {0.0, 0.0};
 float goal_velocity_from_cmd[WHEEL_NUM] = {0.0, 0.0};
 float goal_velocity_from_rc100[WHEEL_NUM] = {0.0, 0.0};
 float module_velocity = 0.0; /* third motor */
-float module_degree = 0.0; /* third motor */
+float module_position = 0.0; /* third motor */
 /*******************************************************************************
 * Declaration for diagnosis
 *******************************************************************************/

@@ -17,7 +17,7 @@
 /* Authors: Yoonseok Pyo, Leon Jung, Darby Lim, HanCheol Cho, Gilbert */
 
 #include <Dynamixel2Arduino.h>
-#include "custom_turtlebot3_core_config.h"
+#include "turtlebot3_core_config.h"
 
 #define DXL_SERIAL   Serial3
 const uint8_t DXL_ID = 4;

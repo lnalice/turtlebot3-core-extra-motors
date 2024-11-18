@@ -21,12 +21,12 @@
 
 /*******************************************************************************
 * bluetooth & LED control
-********************************************************************************/
+*******************************************************************************/
 
 #define BLUE_SERIAL Serial2
 
 char val; //value to receieve data from the serial port
-const int RELAYPIN = 7;
+// const int RELAYPIN = 7;
 
 /*******************************************************************************
 * Extended Position Mode
@@ -61,6 +61,9 @@ void setup()
   /* additional motor*/
   // nh.subscribe(module_vel_sub); // velocity mode
   nh.subscribe(module_pos_sub); // position mode
+  
+  /* additionanl LEDs to indicate direction of movement */
+  nh.subscribe(blink_led_sub);
 
   nh.advertise(sensor_state_pub);  
   nh.advertise(version_info_pub);
@@ -103,7 +106,11 @@ void setup()
   //Bluetooth and LED
   BLUE_SERIAL.begin(57600); //begin serial communications
   while(!BLUE_SERIAL);
-  pinMode(RELAYPIN, OUTPUT); // set LED pins as outputs
+  // pinMode(RELAYPIN, OUTPUT); // set LED pins as outputs
+  pinMode(LED_FRONT, OUTPUT);
+  pinMode(LED_BACK, OUTPUT);
+  pinMode(LED_LEFT, OUTPUT);
+  pinMode(LED_RIGHT, OUTPUT);
 
   setup_end = true;
 }
@@ -113,24 +120,47 @@ void setup()
 *******************************************************************************/
 void loop()
 {
-  // Bluetooth and LED
-  if(BLUE_SERIAL.available()) // check if there is data to read
-  {
-    val = BLUE_SERIAL.read(); // read the data into our value variable
-
-    if (val == 'o') {
-      digitalWrite(RELAYPIN, HIGH); // Turn on 
-    }
-    if (val == 'x') {
-      digitalWrite(RELAYPIN, LOW);
-    }
-  }
-
   uint32_t t = millis();
   char log_msg[50];
   updateTime();
   updateVariable(nh.connected());
   updateTFPrefix(nh.connected());
+
+  // Bluetooth and LED
+  if(BLUE_SERIAL.available()) // check if there is data to read
+  {
+    val = BLUE_SERIAL.read(); // read the data into our value variable
+
+    if (val == 'l') { // LEFT
+      digitalWrite(LED_LEFT, HIGH);
+    }
+    else if (val == 'r') { // RIGHT
+      digitalWrite(LED_RIGHT, HIGH);
+    }
+    else if (val == 'f') { // FRONT
+      digitalWrite(LED_FRONT, HIGH);
+    }
+    else if (val == 'b') { // BACK
+      digitalWrite(LED_BACK, HIGH);
+    }
+    else if (val == 'a') { // ON ALL
+      digitalWrite(LED_FRONT, HIGH);
+      digitalWrite(LED_LEFT, HIGH);
+      digitalWrite(LED_BACK, HIGH);
+      digitalWrite(LED_RIGHT, HIGH);
+    }
+    else if (val == 'x') { // OFF ALL
+      digitalWrite(LED_FRONT, LOW);
+      digitalWrite(LED_LEFT, LOW);
+      digitalWrite(LED_BACK, LOW);
+      digitalWrite(LED_RIGHT, LOW);
+    }
+  }
+
+  if (led_call)
+  {
+    blinkLed();
+  }
 
   if ((t-tTime[0]) >= (1000 / CONTROL_MOTOR_SPEED_FREQUENCY))
   {
@@ -214,6 +244,43 @@ void loop()
   waitForSerialLink(nh.connected());
 }
 
+/******************************************************************************
+* [CUSTOM] CALLBACK (LED BLINK)
+* - Callback function for blinkLedCallback
+*******************************************************************************/
+void blinkLed(void) {
+  for (i = 0; i < LED_BLINK_TIMES; i++) {
+    for (j = 0; j < LED_PIN_CNT; j++) {
+      if (bitRead(led_status, j))
+        digitalWrite(LED_PIN_LIST[j], HIGH);
+    }
+    delay(300);
+    for (j = 0; j < LED_PIN_CNT; j++) {
+      if (bitRead(led_status, j)) {
+        digitalWrite(LED_PIN_LIST[j], LOW);
+      }
+    }
+    delay(200);
+  }
+  led_call = false;
+}
+
+/*
+* @blink_led_msg 0b0000 (RIGHT, LEFT, BACK, FRONT)
+* ACTION      | PIN   | STATUS
+* ----------------------------
+* GO FORWRAD  | FRONT | ON
+* GO BACKWARD | BACK  | ON 
+* TURN LEFT   | LEFT  | ON
+* TURN RIGHT  | RIGHT | ON
+* CTRL MODULE | ALL   | ON
+*/
+void blinkLedCallback(const std_msgs::Byte& blink_led_msg)
+{ 
+  led_status = blink_led_msg.data;
+  led_call = true;
+}
+
 /*******************************************************************************
 * [CUSTOM] CALLBACK (module_vel, module_pos)
 * - Callback function for moduleVelocityCallback msg 
@@ -222,7 +289,7 @@ void loop()
 
 void modulePositionCallback(const std_msgs::Float64MultiArray& mdl_pos_msg) //Extended Position Mode
 {
-  
+
   // Torque Off & On
   for(i = 0; i < DXL_ID_CNT; i++){
     dxl.torqueOff(DXL_ID_LIST[i]);
